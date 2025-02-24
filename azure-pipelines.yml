@@ -52,15 +52,33 @@ stages:
   dependsOn: Build
   condition: succeeded()
   jobs:
-  - deployment: DeployLinuxWebApp
+  - job: DeployLinuxWebApp
     displayName: Deploy Linux Web App
-    environment: 'development'
     pool: 
       vmImage: $(vmImageName)
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - task: DownloadPipelineArtifact@2
-            displayName: 'Download Pipeline Artifact'
-            
+    
+    steps:
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download Pipeline Artifact'
+      inputs:
+        artifactName: 'drop'
+        targetPath: '$(Pipeline.Workspace)/drop'
+
+    - task: AzureWebApp@1
+      displayName: 'Azure Web App Deploy'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        appType: webAppLinux
+        appName: $(webAppName)
+        package: '$(Pipeline.Workspace)/drop/**/*.jar'
+- task: Maven@4
+  inputs:
+    mavenPomFile: 'app/pom.xml'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    codeCoverageToolOption: 'Cobertura'
+    javaHomeOption: 'JDKVersion'
+    mavenVersionOption: 'Default'
+    mavenAuthenticateFeed: false
+    effectivePomSkip: false
+    sonarQubeRunAnalysis: false
