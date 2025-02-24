@@ -1,32 +1,11 @@
 trigger:
-- main
+- master
 
 pool:
   vmImage: 'ubuntu-latest'
 
-steps:
-- task: Maven@4
-  inputs:
-    mavenPomFile: 'app/pom.xml'
-    publishJUnitResults: true
-    testResultsFiles: '**/surefire-reports/TEST-*.xml'
-    codeCoverageToolOption: 'Cobertura'
-    javaHomeOption: 'JDKVersion'
-    mavenVersionOption: 'Default'
-    mavenAuthenticateFeed: false
-    effectivePomSkip: false
-    sonarQubeRunAnalysis: false
-
-# Build your Java project and deploy it to Azure as a Linux web app
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/java
-
-trigger:
-- master
-
 variables:
-
-  # Azure Resource Manager connection created during pipeline creation
+  # Azure Resource Manager connection
   azureSubscription: '4c8e7db9-7472-409e-8b5a-49c63cab73e1'
   
   # Web app name
@@ -49,18 +28,24 @@ stages:
       displayName: 'Maven Package'
       inputs:
         mavenPomFile: 'app/pom.xml'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        codeCoverageToolOption: 'Cobertura'
+        javaHomeOption: 'JDKVersion'
+        mavenVersionOption: 'Default'
 
     - task: CopyFiles@2
       displayName: 'Copy Files to artifact staging directory'
       inputs:
         SourceFolder: '$(System.DefaultWorkingDirectory)'
-        Contents: '**/target/*.?(war|jar)'
-        TargetFolder: $(Build.ArtifactStagingDirectory)
+        Contents: '**/target/*.jar'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
-    - task: PublishPipelineArtifact@0
+    - task: PublishPipelineArtifact@1
       displayName: 'Publish pipeline artifacts'
       inputs:
-        targetPath: $(Build.ArtifactStagingDirectory)
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'drop'
 
 - stage: Deploy
   displayName: Deploy stage
@@ -76,15 +61,6 @@ stages:
       runOnce:
         deploy:
           steps:
-          - task: DownloadPipelineArtifact@1
+          - task: DownloadPipelineArtifact@2
             displayName: 'Download Pipeline Artifact'
-            inputs:
-              buildType: 'current'
-
-          - task: AzureWebApp@1
-            displayName: 'Azure Web App Deploy: gs-spring-boot'
-            inputs:
-              azureSubscription: $(azureSubscription)
-              appType: webAppLinux
-              appName: $(webAppName)
-              package: '$(System.ArtifactsDirectory)/drop/**/target/*.?(war|jar)'
+            
